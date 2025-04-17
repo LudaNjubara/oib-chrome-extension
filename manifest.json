@@ -1,0 +1,14 @@
+{
+  "name": "OIB Gen",
+  "description": "Croatian Random OIB Generator",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "index.html",
+    "default_icon": "./icons/default_icon_rounded.png"
+  },
+  "permissions": ["clipboardWrite", "storage"],
+  "icons": {
+    "48": "./icons/default_icon_rounded.png"
+  }
+}
