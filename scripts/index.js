@@ -6,14 +6,18 @@ const Elements = {
   CLEAR_HISTORY_BTN: document.getElementById("clear-history-btn"),
   SEARCH_INPUT: document.getElementById("search-input"),
   PID_HISTORY_LIST: document.getElementById("pid-history-list"),
+  PINNED_LIST: document.getElementById("pinned-list"), // New element
+  PINNED_SECTION: document.getElementById("pinned-section"), // New element
 };
 
 const Classes = {
   COPIED_MESSAGE: "copied-message",
   SHOW: "show",
   HIDE: "hide",
-  PID_HISTORY_ITEM: "pid-history-item",
-  PID_HISTORY_TIMESTAMP: "pid-history-timestamp",
+  PID_ITEM: "pid-history-item", // Renamed for generic use
+  TIMESTAMP: "pid-history-timestamp", // Renamed for generic use
+  PIN_BTN: "pin-btn",
+  UNPIN_BTN: "unpin-btn",
 };
 
 const StorageKeys = {
@@ -21,17 +25,12 @@ const StorageKeys = {
 };
 
 const AnimationTimings = {
-  FADE_OUT_START: 600,
-  REMOVE_ELEMENT: 800,
+  FADE_OUT_START: 500,
+  REMOVE_ELEMENT: 750,
 };
 
 // --- Utility Functions ---
 
-/**
- * Formats a timestamp into a localized time string (HH:MM:SS).
- * @param {number} timestamp - The timestamp to format.
- * @returns {string} The formatted time string.
- */
 function formatTimestamp(timestamp) {
   return new Date(timestamp).toLocaleTimeString("hr-HR", {
     hour: "2-digit",
@@ -41,10 +40,6 @@ function formatTimestamp(timestamp) {
   });
 }
 
-/**
- * Generates a random Croatian PID (OIB) with a valid control digit.
- * @returns {string} The generated 11-digit PID.
- */
 function generateRandomPID() {
   function calculateControlDigit(digits) {
     let temp = 10;
@@ -55,266 +50,312 @@ function generateRandomPID() {
     }
     return (11 - temp) % 10;
   }
-
   let digits = "";
-  for (let i = 0; i < 10; i++) {
-    digits += Math.floor(Math.random() * 10).toString();
-  }
+  for (let i = 0; i < 10; i++) digits += Math.floor(Math.random() * 10).toString();
   const controlDigit = calculateControlDigit(digits);
   return digits + controlDigit.toString();
 }
 
 // --- UI Update Functions ---
 
-/**
- * Updates the main PID display area.
- * @param {string} pid - The PID to display, or null/undefined to show placeholder.
- */
 function updatePIDDisplay(pid) {
   Elements.PID_NUMBER.textContent = pid || "-";
 }
 
-/**
- * Displays an animated "Copied!" message over a target element.
- * @param {HTMLElement} targetElement - The element to display the message over.
- */
 function showCopiedMessage(targetElement) {
   if (!targetElement) return;
-
-  // Ensure target can contain the absolutely positioned message
-  if (getComputedStyle(targetElement).position === "static") {
-    targetElement.style.position = "relative";
-  }
-
-  // Remove any existing message first
+  if (getComputedStyle(targetElement).position === "static") targetElement.style.position = "relative";
   const existingMessage = targetElement.querySelector(`.${Classes.COPIED_MESSAGE}`);
-  if (existingMessage) {
-    existingMessage.remove();
-  }
+  if (existingMessage) existingMessage.remove();
 
   const messageEl = document.createElement("div");
   messageEl.textContent = "Copied!";
   messageEl.classList.add(Classes.COPIED_MESSAGE);
   targetElement.appendChild(messageEl);
-
-  // Trigger animations
   messageEl.classList.add(Classes.SHOW);
 
-  // Set timeouts for fade-out and removal
   setTimeout(() => {
     messageEl.classList.remove(Classes.SHOW);
     messageEl.classList.add(Classes.HIDE);
   }, AnimationTimings.FADE_OUT_START);
-
   setTimeout(() => {
     messageEl.remove();
   }, AnimationTimings.REMOVE_ELEMENT);
 }
 
 /**
- * Creates and renders a single history list item.
- * @param {object} entry - The history entry { pid, timestamp }.
- * @param {boolean} prepend - Whether to add the item to the top (true) or bottom (false).
+ * Creates a list item element (li) for a PID entry.
+ * Includes PID, timestamp, and pin/unpin button.
+ * @param {object} entry - The history entry { pid, timestamp, pinned? }.
  * @returns {HTMLLIElement} The created list item element.
  */
-function createHistoryListItem(entry) {
+function createListItemElement(entry) {
   const listItemEl = document.createElement("li");
+  listItemEl.dataset.pid = entry.pid; // Store pid in dataset for easy access
+
   const pidEl = document.createElement("span");
-  const timestampEl = document.createElement("span");
-
   pidEl.textContent = entry.pid;
-  timestampEl.textContent = formatTimestamp(entry.timestamp);
-  pidEl.classList.add(Classes.PID_HISTORY_ITEM);
-  timestampEl.classList.add(Classes.PID_HISTORY_TIMESTAMP);
+  pidEl.classList.add(Classes.PID_ITEM);
 
+  const timestampEl = document.createElement("span");
+  timestampEl.textContent = formatTimestamp(entry.timestamp);
+  timestampEl.classList.add(Classes.TIMESTAMP);
+
+  const imageEl = document.createElement("img");
+  imageEl.classList.add("pin-icon");
+  imageEl.src = entry.pinned ? "../icons/pin_fill.png" : "../icons/pin_outline.png"; // Use appropriate icon
+  imageEl.alt = "Pin PID";
+  imageEl.classList.add("pin-icon");
+  imageEl.style.width = "16px"; // Set width for the icon
+  imageEl.style.height = "16px"; // Set height for the icon
+
+  const pinButton = document.createElement("button");
+  pinButton.title = entry.pinned ? "Unpin PID" : "Pin PID";
+  pinButton.classList.add(entry.pinned ? Classes.UNPIN_BTN : Classes.PIN_BTN);
+  pinButton.appendChild(imageEl); // Append the image to the button
+
+  // Structure: [PID] [Pin/Unpin Button] [Timestamp]
   listItemEl.appendChild(pidEl);
+  listItemEl.appendChild(pinButton); // Add button between PID and timestamp
   listItemEl.appendChild(timestampEl);
+
   return listItemEl;
 }
 
 /**
- * Renders a history item to the DOM list.
- * @param {object} entry - The history entry { pid, timestamp }.
- * @param {boolean} prepend - Whether to add the item to the top (true) or bottom (false).
+ * Renders a single item to the appropriate list (pinned or history).
+ * Appends the item to maintain descending timestamp order.
+ * @param {object} entry - The history entry { pid, timestamp, pinned? }.
  */
-function renderHistoryItem(entry, prepend = true) {
-  const listItemEl = createHistoryListItem(entry);
-  if (prepend) {
-    Elements.PID_HISTORY_LIST.insertBefore(listItemEl, Elements.PID_HISTORY_LIST.firstChild);
-  } else {
-    Elements.PID_HISTORY_LIST.appendChild(listItemEl);
-  }
-  // Apply current filter to the newly added item
-  filterHistoryList();
+function renderItem(entry) {
+  const listItemEl = createListItemElement(entry);
+  const targetList = entry.pinned ? Elements.PINNED_LIST : Elements.PID_HISTORY_LIST;
+  // Append to show newest first (as source array is sorted descending)
+  targetList.appendChild(listItemEl); // Changed from insertBefore
 }
 
 /**
- * Filters the visible history list items based on the search input.
+ * Updates the visibility of the pinned section based on whether it has items.
  */
-function filterHistoryList() {
-  const searchTerm = Elements.SEARCH_INPUT.value.toLowerCase();
-  const items = Elements.PID_HISTORY_LIST.getElementsByTagName("li");
+function updatePinnedSectionVisibility() {
+  const hasPinnedItems = Elements.PINNED_LIST.children.length > 0;
+  Elements.PINNED_SECTION.hidden = !hasPinnedItems;
+}
 
-  for (const item of items) {
-    const pidEl = item.querySelector(`.${Classes.PID_HISTORY_ITEM}`);
-    if (pidEl) {
-      const pidText = pidEl.textContent.toLowerCase();
-      item.style.display = pidText.includes(searchTerm) ? "" : "none";
+/**
+ * Filters both the pinned and history lists based on the search input.
+ */
+function filterLists() {
+  const searchTerm = Elements.SEARCH_INPUT.value.toLowerCase();
+  const lists = [Elements.PINNED_LIST, Elements.PID_HISTORY_LIST];
+
+  lists.forEach((list) => {
+    const items = list.getElementsByTagName("li");
+    for (const item of items) {
+      const pidEl = item.querySelector(`.${Classes.PID_ITEM}`);
+      if (pidEl) {
+        const pidText = pidEl.textContent.toLowerCase();
+        item.style.display = pidText.includes(searchTerm) ? "" : "flex"; // Use flex due to li styling
+      }
     }
-  }
+  });
 }
 
 // --- Storage Functions ---
 
-/**
- * Retrieves the PID history from local storage.
- * @returns {Promise<Array<object>>} A promise resolving to the history array.
- */
 async function getHistoryFromStorage() {
   try {
     const result = await chrome.storage.local.get(StorageKeys.PID_HISTORY);
-    return result[StorageKeys.PID_HISTORY] || [];
+    const history = (result[StorageKeys.PID_HISTORY] || []).map((entry) => ({
+      ...entry,
+      pinned: !!entry.pinned,
+    }));
+    // Sort the history by timestamp descending (newest first)
+    history.sort((a, b) => b.timestamp - a.timestamp);
+    return history;
   } catch (error) {
-    console.error("Error loading history from storage:", error);
-    return []; // Return empty array on error
+    console.error("Error loading history:", error);
+    return [];
   }
 }
 
-/**
- * Saves a new PID entry to local storage.
- * @param {object} newEntry - The new history entry { pid, timestamp }.
- * @returns {Promise<void>}
- */
-async function saveHistoryEntryToStorage(newEntry) {
+async function saveHistoryToStorage(history) {
   try {
-    const history = await getHistoryFromStorage();
-    history.push(newEntry);
-    // Optional: Limit history size here if needed
     await chrome.storage.local.set({ [StorageKeys.PID_HISTORY]: history });
   } catch (error) {
-    console.error("Error saving history entry:", error);
+    console.error("Error saving history:", error);
   }
 }
 
 /**
- * Clears the PID history from local storage.
- * @returns {Promise<void>}
+ * Updates the pinned status of a specific PID in storage.
+ * @param {string} pid - The PID to update.
+ * @param {boolean} pinned - The new pinned status.
+ * @returns {Promise<Array<object>|null>} Updated history array or null on error/not found.
  */
+async function updatePinStatusInStorage(pid, pinned) {
+  try {
+    const history = await getHistoryFromStorage();
+    const itemIndex = history.findIndex((item) => item.pid === pid);
+    if (itemIndex > -1) {
+      history[itemIndex].pinned = pinned;
+      await saveHistoryToStorage(history);
+      return history; // Return updated history
+    }
+    console.warn("PID not found in history for pinning:", pid);
+    return null; // Indicate PID not found
+  } catch (error) {
+    console.error("Error updating pin status:", error);
+    return null; // Indicate error
+  }
+}
+
 async function clearHistoryFromStorage() {
   try {
     await chrome.storage.local.remove(StorageKeys.PID_HISTORY);
   } catch (error) {
-    console.error("Error clearing history from storage:", error);
+    console.error("Error clearing history:", error);
   }
 }
 
 // --- Core Logic Functions ---
 
-/**
- * Copies the given PID to the clipboard and shows feedback.
- * @param {string} pid - The PID to copy.
- * @param {HTMLElement} [feedbackElement] - Optional element to show feedback animation on.
- */
 async function copyPidToClipboard(pid, feedbackElement) {
-  if (!pid || pid === "-") return; // Don't copy placeholder
-
+  if (!pid || pid === "-") return;
   try {
     await navigator.clipboard.writeText(pid);
-    console.log("PID copied to clipboard:", pid);
-    if (feedbackElement) {
-      showCopiedMessage(feedbackElement);
-    }
+    console.log("PID copied:", pid);
+    if (feedbackElement) showCopiedMessage(feedbackElement);
   } catch (err) {
-    console.error("Failed to copy PID: ", err);
-    // Optionally show an error message to the user
+    console.error("Failed to copy PID:", err);
   }
 }
 
 /**
- * Loads history from storage and populates the UI.
+ * Loads sorted history, separates pinned/unpinned, and renders both lists.
  */
-async function initializeHistory() {
-  const history = await getHistoryFromStorage();
-  Elements.PID_HISTORY_LIST.innerHTML = ""; // Clear existing list items
+async function initializeUI() {
+  const history = await getHistoryFromStorage(); // Gets sorted history
+  Elements.PID_HISTORY_LIST.innerHTML = "";
+  Elements.PINNED_LIST.innerHTML = "";
 
+  let latestPid = "-";
   if (history.length > 0) {
-    // Render history, ensuring newest are at the top visually
-    history.forEach((entry) => renderHistoryItem(entry, true));
-    updatePIDDisplay(history[history.length - 1].pid); // Display the latest PID
+    history.forEach((entry) => renderItem(entry)); // Renders to correct list, appending
+    // The first item in the sorted array is the latest overall
+    latestPid = history[0].pid;
   } else {
-    // Generate and display an initial PID if history is empty
-    await handleGenerateClick(); // Generate, save, and render
+    // Generate initial PID if history is completely empty
+    // handleGenerateClick will append the new item correctly
+    latestPid = await handleGenerateClick(true); // Render the new item
   }
 
-  Elements.PID_HISTORY_LIST.scrollTop = 0; // Scroll to top
-  filterHistoryList(); // Apply initial filter if search has value
+  updatePIDDisplay(latestPid);
+  updatePinnedSectionVisibility(); // Show/hide pinned section
+  filterLists(); // Apply initial filter
+  // No need to scroll to top anymore, as newest is already there
+  // Elements.PID_HISTORY_LIST.scrollTop = 0;
+  // Elements.PINNED_LIST.scrollTop = 0;
 }
 
 /**
- * Handles the click event for the generate button.
+ * Handles generating a new PID, saving it, and rendering it.
+ * @param {boolean} render - Whether to render the item immediately (default true).
+ * @returns {Promise<string>} The newly generated PID.
  */
-async function handleGenerateClick() {
+async function handleGenerateClick(render = true) {
   const newPID = generateRandomPID();
   const generationTime = Date.now();
-  const newEntry = { pid: newPID, timestamp: generationTime };
+  const newEntry = { pid: newPID, timestamp: generationTime, pinned: false };
 
   updatePIDDisplay(newPID);
-  await saveHistoryEntryToStorage(newEntry);
-  renderHistoryItem(newEntry, true); // Render prepended
-  Elements.PID_HISTORY_LIST.scrollTop = 0; // Ensure scroll stays at top
+
+  // Save to storage first
+  const history = await getHistoryFromStorage(); // Get potentially unsorted history
+  history.push(newEntry);
+  // No need to sort here, saveHistoryToStorage just saves
+  await saveHistoryToStorage(history);
+
+  if (render) {
+    // Re-initialize UI to ensure correct sorting after adding
+    await initializeUI();
+  }
+  return newPID; // Return the generated PID
+}
+
+async function handleClearHistoryClick() {
+  if (window.confirm("Clear entire PID history (pinned items will remain)?")) {
+    const history = await getHistoryFromStorage();
+    const pinnedItems = history.filter((item) => item.pinned); // Keep only pinned items
+    await saveHistoryToStorage(pinnedItems); // Save back only pinned items
+    await initializeUI(); // Re-render UI
+    console.log("Non-pinned history cleared.");
+  } else {
+    console.log("Clear history cancelled.");
+  }
 }
 
 /**
- * Handles the click event for the clear history button.
+ * Handles pinning or unpinning an item. Re-initializes UI to maintain sort order.
+ * @param {string} pid - The PID of the item.
+ * @param {boolean} shouldPin - True to pin, false to unpin.
  */
-async function handleClearHistoryClick() {
-  if (window.confirm("Are you sure you want to clear the entire PID history? This cannot be undone.")) {
-    await clearHistoryFromStorage();
-    Elements.PID_HISTORY_LIST.innerHTML = "";
-    updatePIDDisplay("-");
-    Elements.SEARCH_INPUT.value = "";
-    console.log("PID history cleared.");
-    // Optionally generate a new initial PID after clearing
-    // await handleGenerateClick();
-  } else {
-    console.log("Clear history cancelled.");
+async function handlePinToggle(pid, shouldPin) {
+  const updatedHistory = await updatePinStatusInStorage(pid, shouldPin);
+  if (updatedHistory) {
+    // Re-initialize the entire UI to ensure correct sorting in both lists
+    await initializeUI();
   }
 }
 
 // --- Event Handlers ---
 
 function handleCopyButton() {
-  copyPidToClipboard(Elements.PID_NUMBER.textContent, Elements.COPY_BTN);
+  copyPidToClipboard(Elements.PID_NUMBER.textContent, Elements.PID_NUMBER);
 }
-
 function handlePidNumberClick() {
   copyPidToClipboard(Elements.PID_NUMBER.textContent, Elements.PID_NUMBER);
 }
 
-function handleHistoryListClick(event) {
-  const listItem = event.target.closest("li");
+/**
+ * Handles clicks within the Pinned or History lists.
+ * Delegates to copy or pin/unpin actions.
+ * @param {Event} event
+ */
+function handleListClick(event) {
+  const target = event.target;
+  const listItem = target.closest("li");
   if (!listItem) return;
 
-  const pidEl = listItem.querySelector(`.${Classes.PID_HISTORY_ITEM}`);
-  if (pidEl) {
-    copyPidToClipboard(pidEl.textContent, listItem);
+  const pid = listItem.dataset.pid;
+  if (!pid) return;
+
+  // Check if pin/unpin button was clicked
+  if (target.closest(`.${Classes.PIN_BTN}`)) {
+    handlePinToggle(pid, true); // Pin the item
+  } else if (target.closest(`.${Classes.UNPIN_BTN}`)) {
+    handlePinToggle(pid, false); // Unpin the item
+  } else {
+    // Otherwise, assume click is to copy PID
+    copyPidToClipboard(pid, listItem);
   }
 }
 
 // --- Event Listener Setup ---
 
 function setupEventListeners() {
-  Elements.GENERATE_BTN.addEventListener("click", handleGenerateClick);
+  Elements.GENERATE_BTN.addEventListener("click", () => handleGenerateClick()); // Pass no args
   Elements.COPY_BTN.addEventListener("click", handleCopyButton);
   Elements.PID_NUMBER.addEventListener("click", handlePidNumberClick);
   Elements.CLEAR_HISTORY_BTN.addEventListener("click", handleClearHistoryClick);
-  Elements.SEARCH_INPUT.addEventListener("input", filterHistoryList);
-  Elements.PID_HISTORY_LIST.addEventListener("click", handleHistoryListClick);
+  Elements.SEARCH_INPUT.addEventListener("input", filterLists); // Filter both lists
+  Elements.PID_HISTORY_LIST.addEventListener("click", handleListClick); // Single handler for history list
+  Elements.PINNED_LIST.addEventListener("click", handleListClick); // Single handler for pinned list
 }
 
 // --- Initialization ---
 
 document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
-  initializeHistory();
+  initializeUI(); // Use the new initialization function
 });

@@ -12,6 +12,8 @@
   --danger-bg: #f8d7da;
   --danger-border: #f5c6cb;
   --danger-text: #721c24;
+  --pin-color: #d7dbdf; /* Yellow for pinning */
+  --pin-hover-bg: #e9ecef; /* Light background on hover */
   --font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --border-radius: 6px;
   --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
@@ -28,7 +30,7 @@ body {
 
 #container {
   background-color: var(--container-bg);
-  padding: 30px 20px 20px;
+  padding: 20px; /* Adjusted padding */
 }
 
 #pid-display {
@@ -37,32 +39,30 @@ body {
   align-items: center;
   justify-content: space-between;
   background-color: var(--border-light);
-  padding: 20px 15px;
+  padding: 12px 15px; /* Adjusted padding */
   border-radius: var(--border-radius);
-  margin-bottom: 25px;
+  margin-bottom: 20px; /* Adjusted margin */
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 #pid-number {
   position: relative;
-  font-size: 30px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-color);
+  letter-spacing: 1px;
   margin-right: 10px;
   flex-grow: 1;
-  text-align: center;
+  text-align: left;
   min-width: 0;
   cursor: pointer;
   user-select: none;
 }
 
 .pid-actions {
-  position: absolute;
-  top: 0;
-  right: 10px;
   display: flex;
-  gap: 2px;
-  transform: translateY(-50%);
+  gap: 5px;
+  /* Removed absolute positioning for simplicity */
 }
 
 button {
@@ -80,6 +80,10 @@ button {
   border-color: var(--border-color);
   color: var(--text-light);
 }
+button img {
+  /* Ensure images align vertically */
+  vertical-align: middle;
+}
 
 button:hover {
   border-color: var(--primary-color);
@@ -91,21 +95,16 @@ button:active {
   background-color: #dbeaff;
 }
 
-#generate-btn {
-}
-
-#copy-btn {
-}
-
-.history-section {
+/* List Sections (Common Styles) */
+.list-section {
   margin-top: 20px;
 }
 
-.history-header {
+.list-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 10px; /* Reduced margin */
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border-light);
 }
@@ -120,22 +119,22 @@ h2 {
 
 #clear-history-btn {
   background-color: transparent;
-  border: 2px transparent;
+  border-color: transparent;
   color: var(--text-light);
-  padding: 6px;
-  font-size: 18px;
+  padding: 4px;
+  font-size: 16px; /* Adjusted size */
 }
 
 #clear-history-btn:hover {
   background-color: var(--danger-bg);
+  border-color: transparent;
   color: var(--danger-color);
-  border-color: var(--danger-border);
 }
 
 #search-input {
   width: 100%;
   padding: 8px 12px;
-  margin-bottom: 12px;
+  margin-bottom: 10px; /* Reduced margin */
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   font-size: 14px;
@@ -149,71 +148,130 @@ h2 {
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-#pid-history-list {
+/* Generic List Styles */
+#pid-history-list,
+#pinned-list {
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 180px;
+  max-height: 150px; /* Adjusted max height */
   overflow-y: auto;
   border: 1px solid var(--border-light);
   border-radius: var(--border-radius);
 }
 
-#pid-history-list::-webkit-scrollbar {
+/* Specific Pinned List Style */
+#pinned-list {
+  border-color: var(--pin-color); /* Highlight pinned list */
+  margin-bottom: 15px; /* Space between pinned and history */
+  max-height: 121px; /* Limit pinned height */
+}
+
+#pinned-section[hidden] {
+  display: none;
+}
+
+/* Scrollbar Styles */
+#pid-history-list::-webkit-scrollbar,
+#pinned-list::-webkit-scrollbar {
   width: 6px;
 }
-#pid-history-list::-webkit-scrollbar-track {
+#pid-history-list::-webkit-scrollbar-track,
+#pinned-list::-webkit-scrollbar-track {
   background: var(--bg-color);
   border-radius: 3px;
 }
-#pid-history-list::-webkit-scrollbar-thumb {
+#pid-history-list::-webkit-scrollbar-thumb,
+#pinned-list::-webkit-scrollbar-thumb {
   background-color: var(--border-color);
   border-radius: 3px;
 }
-#pid-history-list::-webkit-scrollbar-thumb:hover {
+#pid-history-list::-webkit-scrollbar-thumb:hover,
+#pinned-list::-webkit-scrollbar-thumb:hover {
   background-color: var(--text-light);
 }
 
-#pid-history-list li {
+/* List Item Styles */
+#pid-history-list li,
+#pinned-list li {
   position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  padding: 8px 10px; /* Adjusted padding */
   border-bottom: 1px solid var(--border-light);
   transition: background-color 0.15s ease;
   cursor: pointer;
 }
 
-#pid-history-list li:last-child {
+#pid-history-list li:last-child,
+#pinned-list li:last-child {
   border-bottom: none;
 }
 
-#pid-history-list li:hover {
+#pid-history-list li:hover,
+#pinned-list li:hover {
   background-color: var(--bg-color);
 }
 
 .pid-history-item {
+  /* Renamed for clarity, used for both lists */
   font-size: 14px;
   color: var(--text-color);
   font-weight: 500;
   margin-right: 10px;
+  flex-grow: 1; /* Allow PID to take space */
+  overflow: hidden; /* Prevent long PIDs from breaking layout */
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pid-history-timestamp {
-  font-size: 12px;
+  /* Renamed for clarity, used for both lists */
+  font-size: 11px; /* Smaller timestamp */
   color: var(--text-light);
   white-space: nowrap;
-  margin-top: 0;
-  display: inline;
+  margin-left: 10px; /* Space between PID/buttons and timestamp */
 }
 
+/* Pin/Unpin Buttons */
+.pin-btn,
+.unpin-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  margin-left: 5px; /* Space from PID */
+  font-size: 14px; /* Icon size */
+  color: var(--text-light);
+  border-radius: 4px;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.pin-btn:hover {
+  color: var(--pin-color);
+  background-color: var(--pin-hover-bg);
+  border-color: transparent; /* Override general button hover */
+}
+
+.unpin-btn {
+  color: var(--pin-color); /* Show pinned status */
+}
+
+.unpin-btn:hover {
+  color: var(--danger-color);
+  background-color: var(--danger-bg);
+  border-color: transparent; /* Override general button hover */
+}
+
+/* Copied Message */
 .copied-message {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) scale(0.5);
-  background-color: black;
+  background-color: rgb(0, 0, 0);
   color: white;
   padding: 5px 10px;
   border-radius: 4px;

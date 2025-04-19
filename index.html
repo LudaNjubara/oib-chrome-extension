@@ -1,15 +1,10 @@
-<!-- filepath: f:\Projects\oib-chrome-extension\index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OIB Generator</title> <!-- Slightly more descriptive title -->
+    <title>OIB Generator</title>
     <link rel="stylesheet" href="styles/index.css">
-    <!-- Optional: Add a modern font like Inter or Poppins from Google Fonts -->
-    <!-- <link rel="preconnect" href="https://fonts.googleapis.com"> -->
-    <!-- <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin> -->
-    <!-- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet"> -->
 </head>
 <body>
     <div id="container">
@@ -20,13 +15,23 @@
                     <img src="icons/generate.png" alt="Generate PID" width="16" height="16">
                 </button>
                 <button id="copy-btn" title="Copy PID">
-                    <img src="icons/copy.png" alt="Copy PID" width="20" height="20"> 
+                    <img src="icons/copy.png" alt="Copy PID" width="20" height="20">
                 </button>
             </div>
         </div>
 
-        <div class="history-section">
-            <div class="history-header">
+        <!-- Pinned Section -->
+        <div id="pinned-section" class="list-section" hidden> <!-- Initially hidden -->
+             <div class="list-header">
+                <h2>Pinned</h2>
+                <!-- Maybe add a clear all pinned button later? -->
+            </div>
+            <ul id="pinned-list"></ul>
+        </div>
+
+        <!-- History Section -->
+        <div class="history-section list-section">
+            <div class="history-header list-header"> <!-- Added common class -->
                 <h2>History</h2>
                 <button id="clear-history-btn" title="Clear History">
                     <img src="icons/bin.png" alt="Clear History" width="20" height="20">
